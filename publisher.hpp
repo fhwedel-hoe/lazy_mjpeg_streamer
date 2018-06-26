@@ -5,8 +5,6 @@
 /** @brief Publish/Subscribe Pattern
  *
  * Based on https://www.justsoftwaresolutions.co.uk/threading/implementing-a-thread-safe-queue-using-condition-variables.html .
- * 
- * TODO: Adjust comments
  */
 template<typename Data>
 class Publisher 
@@ -20,12 +18,15 @@ private:
     boost::condition_variable the_condition_variable;
 public:
     
-    Publisher(Data const& data) : the_value(data) {
-    }
+    /**
+     * @brief Constructs a Publisher yielding a default value.
+     * @param data The default value.
+     */
+    Publisher(Data const& data) : the_value(data) {}
     
     /**
-     * @brief Put an element to the message box. Overwrites existing element.
-     * @param data The element to be added
+     * @brief Publish data. Replaces existing data. Notifies all reading subscribers.
+     * @param data The data to be published.
      */
     void publish(Data const& data) {
         boost::mutex::scoped_lock lock(the_mutex);
@@ -35,8 +36,19 @@ public:
     }
 
     /**
-     * @brief Retrieves an element from the queue. Does not remove element from the queue. Blocks until an element can be retrieved.
-     * @return The retrieved element.
+     * @brief Modifies data in-place and thread-safe.
+     * @param data The function to apply to the published data.
+     */
+    void update(std::function<void(Data &)> f) {
+        boost::mutex::scoped_lock lock(the_mutex);
+        f(the_value);
+        lock.unlock();
+        the_condition_variable.notify_all();
+    }
+
+    /**
+     * @brief Waits for data to be published.
+     * @return The published data.
      */
     Data read() {
         boost::mutex::scoped_lock lock(the_mutex);
@@ -44,6 +56,14 @@ public:
         Data value = the_value;
         lock.unlock();
         return value;
+    }
+
+    /**
+     * @brief Reads published data without blocking. Dangerous. Not thread-safe.
+     * @return The published data.
+     */
+    Data read_unsafe() {
+        return the_value;
     }
 
 };

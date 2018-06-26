@@ -8,6 +8,7 @@
 #include <boost/asio.hpp>
 
 #include "publisher.hpp"
+#include "placeholder.hpp"
 
 using boost::asio::ip::tcp;
 
@@ -44,33 +45,49 @@ std::string read_line_from_buffered_socket(
   }
 }
 
-void session(tcp::socket socket, int & readers, Publisher<binary_data> & data) {
-  readers++;
+class StreamWriter {
+  IPC_globals & ipc;
+  public:
+    StreamWriter(IPC_globals & ipc) : ipc(ipc) {
+      ipc.readers.update([](unsigned int & i){i++;});
+    }
+    ~StreamWriter() {
+      ipc.readers.update([](unsigned int & i){i--;});
+    }
+    size_t send(tcp::socket & socket, const std::vector<unsigned char> & d) {
+      std::ostringstream answer; answer <<
+        "--BOUNDARY\r\n" << 
+        "Content-Type: image/jpeg\r\n" <<
+        "Content-Length: " << d.size() << "\r\n" <<
+        "\r\n";
+      size_t sent = 0;
+      sent += boost::asio::write(socket, boost::asio::buffer(answer.str()));
+      sent += boost::asio::write(socket, boost::asio::buffer(d.data(), d.size()));
+      //std::cerr << "Sent " << sent << " bytes of data (" << d.size() << " bytes of user-data)." << std::endl;
+      return sent;
+    }
+    void stream(tcp::socket & socket) {
+      this->send(socket, placeholder);
+      for (;;) {
+        this->send(socket, ipc.data.read());
+      }
+    }
+};
+
+void session(tcp::socket socket, IPC_globals & ipc) {
+  
   boost::asio::streambuf buffer(http_header_line_max_length);
   std::string answer("HTTP/1.1 500 Internal Server Error\r\nConnection: Closed\r\n\r\n");
   try {
     
     std::string request_header = read_line_from_buffered_socket(socket, buffer);
     if (request_header == "GET / HTTP/1.1") {
-      std::cerr << "Session begins OK" << "\n";
       answer = "HTTP/1.1 200 OK\r\n" \
       "Content-Type: multipart/x-mixed-replace;boundary=BOUNDARY\r\n" \
       "\r\n";
       boost::asio::write(socket, boost::asio::buffer(answer));
-      for (;;) {
-        std::vector<unsigned char> d = data.read();
-        std::ostringstream answer; answer <<
-          "--BOUNDARY\r\n" << 
-          "Content-Type: image/jpeg\r\n" <<
-          "Content-Length: " << d.size() << "\r\n" <<
-          "\r\n";
-        size_t sent = 0;
-        sent += boost::asio::write(socket, boost::asio::buffer(answer.str()));
-        sent += boost::asio::write(socket, boost::asio::buffer(d.data(), d.size()));
-        std::cerr << "Sent " << sent << " bytes of data (" << d.size() << " bytes of user-data)." << std::endl;
-      }
+      StreamWriter(ipc).stream(socket);
     } else {
-      //std::cerr << "Unsupported" << "\n";
       throw unsupported_request_line_error();
     }
     
@@ -78,37 +95,46 @@ void session(tcp::socket socket, int & readers, Publisher<binary_data> & data) {
     answer = "HTTP/1.1 400 Bad Request\r\nConnection: Closed\r\n\r\n";
   } catch (boost::system::system_error & bsse) {
     if (bsse.code() == boost::asio::error::eof) {
-      // silently ignore premature client disconnects
+      // silently ignore client not sending
+    } else if (bsse.code() == boost::asio::error::broken_pipe) {
+      // silently ignore client disconnecting
+    } else if (bsse.code() == boost::asio::error::connection_reset) {
+      // silently ignore client disconnecting
     } else {
-      std::cerr << "Unexpected boost system exception while receiving: " << bsse.what() << "\n";
+      std::cerr << "Unexpected boost system exception: " << bsse.what() << "\n";
     }
   } catch (std::exception & se) {
-    std::cerr << "Unexpected exception while receiving: " << se.what() << "\n";
+    std::cerr << "Unexpected exception: " << se.what() << "\n";
   }
   try {
     boost::asio::write(socket, boost::asio::buffer(answer));
+  } catch (boost::system::system_error & bsse) {
+    if (bsse.code() == boost::asio::error::broken_pipe) {
+      // silently ignore client disconnecting
+    } else {
+      std::cerr << "Unexpected boost system exception while sending answer: " << bsse.what() << "\n";
+    }
   } catch (std::exception& se) {
     std::cerr << "Unexpected exception while sending answer: " << se.what() << "\n";
   }
-  readers--;
-  std::cerr << "Session ended. Readers remaining: " << readers << "\n";
+  std::cerr << "Session ended. Readers remaining: " << ipc.readers.read_unsafe() << "\n";
 }
 
-void server(boost::asio::io_service& io_service, unsigned short port, int & readers, Publisher<binary_data> & data) {
+void server(boost::asio::io_service& io_service, unsigned short port, IPC_globals & ipc) {
   //tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v6(), port));
   //tcp::acceptor acceptor(io_service, tcp::endpoint(boost::asio::ip::address::from_string("::1"), port));
   tcp::acceptor acceptor(io_service, tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), port));
   for (;;) {
     tcp::socket sock(io_service);
     acceptor.accept(sock);
-    std::thread(session, std::move(sock), std::ref(readers), std::ref(data)).detach();
+    std::thread(session, std::move(sock), std::ref(ipc)).detach();
   }
 }
 
-void serve(int & readers, Publisher<binary_data> & data) {
+void serve(IPC_globals & ipc) {
   try {
     boost::asio::io_service io_service;
-    server(io_service, server_port, readers, data);
+    server(io_service, server_port, ipc);
   } catch (std::exception& e) {
     std::cerr << "Exception: " << e.what() << "\n";
   }

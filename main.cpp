@@ -7,10 +7,17 @@
 
 #include "ueye.h"
 
+#include "publisher.hpp"
+
 typedef std::vector<unsigned char> binary_data;
+class IPC_globals {
+    public:
+        Publisher<unsigned int> readers;
+        Publisher<binary_data> data;
+        IPC_globals() : readers(0), data({}) {};
+};
 
 #include "compress.hpp"
-#include "publisher.hpp"
 #include "serve.hpp"
 
 void abortOnError(const int status, const char *msg) {
@@ -19,17 +26,16 @@ void abortOnError(const int status, const char *msg) {
     }
 }
 
-void worker(int & readers, Publisher<binary_data> & frame) {
+void capture(IPC_globals & ipc) {
     
-    for (;;) {
+    for (;;) { // stream forever
     
-        if (readers == 0) {
-            // busy waiting
-            boost::this_thread::sleep_for(boost::chrono::seconds(1));
-        } else {
+        try { // do not break loop due to exceptions
+      
+            ipc.readers.read(); // wait for reader
             
             std::cerr << "Initializing camera for new recording session..." << std::endl;
-    
+
             /* initialize first available camera */
             HIDS hCam = 0;
             int nRet = is_InitCamera(&hCam, 0);
@@ -63,16 +69,20 @@ void worker(int & readers, Publisher<binary_data> & frame) {
             std::cerr << "Camera initialized, starting stream..." << std::endl;
 
             /* capture a single image and submit it to the streaming library */
-            while (readers > 0) {
+            while (ipc.readers.read_unsafe() > 0) {
+                
                 /* capture a single frame */
                 nRet = is_FreezeVideo(hCam, IS_WAIT);
 
                 unsigned char* pData = reinterpret_cast<unsigned char*>(pMemoryBuffer);
+                /* wrap C array */
                 binary_data image_raw(pData,pData+sData);
+                /* compress image data */
                 binary_data image_compressed = 
                     compress(image_raw, rectAoi.s32Width, rectAoi.s32Height);
 
-                frame.publish(image_compressed);
+                /* publish for readers */
+                ipc.data.publish(image_compressed);
             }
             
             std::cerr << "Stopping camera due to lack of viewers..." << std::endl;
@@ -80,15 +90,17 @@ void worker(int & readers, Publisher<binary_data> & frame) {
             /* close camera */
             nRet = is_ExitCamera(hCam);
             abortOnError(nRet, "exit camera failed with error code: ");
+        
+        } catch (std::exception & se) {
+            std::cerr << "Unexpected exception: " << se.what() << "\n";
         }
     }
 }
 
-int readers = 0;
-Publisher<binary_data> frame({});
+IPC_globals ipc_globals;
 
 int main(int, char**) {
-    std::thread(worker, std::ref(readers), std::ref(frame)).detach();
-    serve(readers, frame);
+    std::thread(capture, std::ref(ipc_globals)).detach();
+    serve(ipc_globals);
     return 0;
 }

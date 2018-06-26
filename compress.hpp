@@ -4,7 +4,7 @@
 #include <vector>
 
 binary_data compress(binary_data buffer, int width, int height) {
-    const int JPEG_QUALITY = 75;
+    const int JPEG_QUALITY = 85;
     const int COLOR_COMPONENTS = 3;
     long unsigned int jpegSize = 0;
     unsigned char* compressedImage = 0;
