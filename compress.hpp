@@ -13,7 +13,7 @@ binary_data compress(binary_data buffer, int width, int height) {
     tjCompress2(
         _jpegCompressor, 
         buffer.data(), 
-        width, 0, height, TJPF_RGB,
+        width, 0, height, TJPF_BGR,
         &compressedImage, &jpegSize, 
         TJSAMP_444, JPEG_QUALITY, TJFLAG_FASTDCT
     );
