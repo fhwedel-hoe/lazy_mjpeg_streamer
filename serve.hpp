@@ -49,10 +49,12 @@ class StreamWriter {
   IPC_globals & ipc;
   public:
     StreamWriter(IPC_globals & ipc) : ipc(ipc) {
-      ipc.readers.update([](unsigned int & i){i++;});
+      int i = ipc.readers.update([](unsigned int & i){return ++i;});
+      std::cerr << "Viewer connected. Readers now: " << i << "\n";
     }
     ~StreamWriter() {
-      ipc.readers.update([](unsigned int & i){i--;});
+      int i = ipc.readers.update([](unsigned int & i){return --i;});
+      std::cerr << "Viewer disconnected. Readers remaining: " << i << "\n";
     }
     size_t send(tcp::socket & socket, const std::vector<unsigned char> & d) {
       std::ostringstream answer; answer <<
@@ -117,7 +119,6 @@ void session(tcp::socket socket, IPC_globals & ipc) {
   } catch (std::exception& se) {
     std::cerr << "Unexpected exception while sending answer: " << se.what() << "\n";
   }
-  std::cerr << "Session ended. Readers remaining: " << ipc.readers.read_unsafe() << "\n";
 }
 
 void server(boost::asio::io_service& io_service, unsigned short port, IPC_globals & ipc) {

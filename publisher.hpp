@@ -39,11 +39,12 @@ public:
      * @brief Modifies data in-place and thread-safe.
      * @param data The function to apply to the published data.
      */
-    void update(std::function<void(Data &)> f) {
+    Data update(std::function<Data(Data &)> f) {
         boost::mutex::scoped_lock lock(the_mutex);
-        f(the_value);
+        Data d = f(the_value);
         lock.unlock();
         the_condition_variable.notify_all();
+        return d;
     }
 
     /**
