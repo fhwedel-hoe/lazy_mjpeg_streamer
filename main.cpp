@@ -4,19 +4,10 @@
 #include <vector>
 #include <chrono>
 #include <stdexcept>
+#include <thread>
 
 #include "ueye.h"
-
 #include "publisher.hpp"
-
-typedef std::vector<unsigned char> binary_data;
-class IPC_globals {
-    public:
-        Publisher<unsigned int> readers;
-        Publisher<binary_data> data;
-        IPC_globals() : readers(0), data({}) {};
-};
-
 #include "compress.hpp"
 #include "serve.hpp"
 
@@ -99,8 +90,15 @@ void capture(IPC_globals & ipc) {
 
 IPC_globals ipc_globals;
 
+const unsigned short server_port = 8080;
+
 int main(int, char**) {
     std::thread(capture, std::ref(ipc_globals)).detach();
-    serve(ipc_globals);
+    try {
+        boost::asio::io_service io_service;
+        server(io_service, server_port, ipc_globals);
+    } catch (std::exception& e) {
+        std::cerr << "Exception: " << e.what() << "\n";
+    }
     return 0;
 }
