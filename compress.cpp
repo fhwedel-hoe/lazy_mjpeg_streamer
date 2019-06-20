@@ -1,8 +1,7 @@
 #include "compress.hpp"
-#include <turbojpeg.h>
 #include <vector>
 
-binary_data compress(binary_data buffer, int width, int height) {
+binary_data compress(binary_data buffer, int width, int height, TJPF pixelFormat) {
     const int JPEG_QUALITY = 85;
     const int COLOR_COMPONENTS = 3;
     long unsigned int jpegSize = 0;
@@ -12,7 +11,7 @@ binary_data compress(binary_data buffer, int width, int height) {
     tjCompress2(
         _jpegCompressor, 
         buffer.data(), 
-        width, 0, height, TJPF_BGR,
+        width, 0, height, pixelFormat,
         &compressedImage, &jpegSize, 
         TJSAMP_444, JPEG_QUALITY, TJFLAG_FASTDCT
     );

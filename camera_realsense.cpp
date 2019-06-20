@@ -3,9 +3,10 @@
 #include <stdexcept>
 #include <iostream>
 
-extern "C"
-std::unique_ptr<Camera> init_camera() {
-    return std::make_unique<Camera_realsense>();
+extern "C" {
+    std::unique_ptr<Camera> init_camera() {
+       return std::make_unique<Camera_realsense>();
+    }
 }
 
 Camera_realsense::Camera_realsense() : Camera(), ctx() {
@@ -47,5 +48,5 @@ RawImage Camera_realsense::grab_frame() {
     const unsigned int sData = width * height * 3;
     const unsigned char * pData = reinterpret_cast<const unsigned char *>(dev->get_frame_data(rs::stream::color));
     const std::vector<unsigned char> vData(pData,pData+sData);
-    return RawImage(vData, width, height);
+    return RawImage(vData, width, height, TJPF_RGB);
 }

@@ -2,9 +2,10 @@
 
 #include <stdexcept>
 
-extern "C"
-std::unique_ptr<Camera> init_camera() {
-    return std::make_unique<Camera_ueye>();
+extern "C" {
+    std::unique_ptr<Camera> init_camera() {
+        return std::make_unique<Camera_ueye>();
+    }
 }
 
 void abortOnError(const int status, const char *msg) {
@@ -53,5 +54,5 @@ RawImage Camera_ueye::grab_frame() {
     int nRet = is_FreezeVideo(hCam, IS_WAIT);
     unsigned char* pData = reinterpret_cast<unsigned char*>(pMemoryBuffer);
     /* wrap C array */
-    return RawImage(std::vector<unsigned char>(pData,pData+sData), rectAoi.s32Width, rectAoi.s32Height);
+    return RawImage(std::vector<unsigned char>(pData,pData+sData), rectAoi.s32Width, rectAoi.s32Height, TJPF_BGR);
 }
