@@ -5,6 +5,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <thread>
+#include <memory>
 
 #include "publisher.hpp"
 #include "compress.hpp"
@@ -16,12 +17,12 @@ void capture(IPC_globals & ipc) {
         try { // do not break loop due to exceptions
             ipc.readers.read(); // wait for reader
             std::cerr << "Initializing camera for new recording session..." << std::endl;
-            Camera_ueye camera;
+            std::unique_ptr<Camera> camera = std::make_unique<Camera_ueye>();
             std::cerr << "Camera initialized, starting stream..." << std::endl;
             /* capture a single image and submit it to the streaming library */
             while (ipc.readers.read_unsafe() > 0) {
                 /* grab raw image data frame */
-                RawImage raw_image = camera.grab_frame();
+                RawImage raw_image = camera->grab_frame();
                 /* compress image data */
                 binary_data image_compressed = 
                     compress(raw_image.data, raw_image.width, raw_image.height);
