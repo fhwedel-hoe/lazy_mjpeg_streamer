@@ -10,14 +10,14 @@
 #include "publisher.hpp"
 #include "compress.hpp"
 #include "serve.hpp"
-#include "camera_ueye.hpp"
+#include "camera.hpp"
 
 void capture(IPC_globals & ipc) {
     for (;;) { // stream forever
         try { // do not break loop due to exceptions
             ipc.readers.read(); // wait for reader
             std::cerr << "Initializing camera for new recording session..." << std::endl;
-            std::unique_ptr<Camera> camera = std::make_unique<Camera_ueye>();
+            std::unique_ptr<Camera> camera = init_camera();
             std::cerr << "Camera initialized, starting stream..." << std::endl;
             /* capture a single image and submit it to the streaming library */
             while (ipc.readers.read_unsafe() > 0) {

@@ -2,6 +2,11 @@
 
 #include <stdexcept>
 
+extern "C"
+std::unique_ptr<Camera> init_camera() {
+    return std::make_unique<Camera_ueye>();
+}
+
 void abortOnError(const int status, const char *msg) {
     if (status != 0) {
         throw std::runtime_error(std::string(msg)+std::to_string(status));

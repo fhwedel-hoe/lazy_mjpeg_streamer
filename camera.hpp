@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 
 class RawImage {
     public:
@@ -14,3 +15,6 @@ class Camera {
     public:
         virtual RawImage grab_frame() = 0;
 };
+
+extern "C"
+std::unique_ptr<Camera> init_camera();
