@@ -11,3 +11,8 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/lib/)
 add_library(camera_ueye SHARED camera_ueye.cpp)
 target_include_directories(camera_ueye PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/include/)
 target_link_libraries(camera_ueye ueye_api)
+
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/extern/librealsense/build/)
+add_library(camera_realsense SHARED camera_realsense.cpp)
+target_include_directories(camera_realsense PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/librealsense/include/)
+target_link_libraries(camera_realsense realsense)
