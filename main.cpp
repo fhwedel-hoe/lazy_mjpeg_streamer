@@ -6,13 +6,29 @@
 #include <stdexcept>
 #include <thread>
 #include <memory>
+#include <dlfcn.h>
 
 #include "publisher.hpp"
 #include "compress.hpp"
 #include "serve.hpp"
 #include "camera.hpp"
 
+// https://stackoverflow.com/questions/4770968/storing-function-pointer-in-stdfunction
+template <typename Signature>
+std::function<Signature> cast(void* f)
+{
+    return reinterpret_cast<Signature*>(f);
+}
+
 void capture(IPC_globals & ipc) {
+    
+    void *handle = dlopen("libcamera_ueye.so", RTLD_NOW);
+    if (handle == NULL) {
+       throw std::runtime_error("Could not load camera module.");
+    }
+    void * init_camera_ptr = dlsym(handle, "init_camera");
+    auto init_camera = cast<std::unique_ptr<Camera>()>(init_camera_ptr);
+    
     for (;;) { // stream forever
         try { // do not break loop due to exceptions
             ipc.readers.read(); // wait for reader
