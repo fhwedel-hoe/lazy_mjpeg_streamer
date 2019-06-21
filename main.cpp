@@ -13,24 +13,7 @@
 #include "serve.hpp"
 #include "camera.hpp"
 
-// https://stackoverflow.com/questions/4770968/storing-function-pointer-in-stdfunction
-template <typename Signature>
-std::function<Signature> cast(void* f)
-{
-    return reinterpret_cast<Signature*>(f);
-}
-
-std::function<std::unique_ptr<Camera>()> load_camera_init() {
-    void *handle = dlopen("libcamera.so", RTLD_NOW);
-    if (handle == NULL) {
-       throw std::runtime_error("Could not load camera module libcamera.so.");
-    }
-    void * init_camera_ptr = dlsym(handle, "init_camera");
-    return cast<std::unique_ptr<Camera>()>(init_camera_ptr);
-}
-
 void capture(IPC_globals & ipc) {
-    auto init_camera = load_camera_init();
     for (;;) { // stream forever
         try { // do not break loop due to exceptions
             ipc.readers.read(); // wait for reader
