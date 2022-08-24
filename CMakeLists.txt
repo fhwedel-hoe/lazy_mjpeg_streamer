@@ -2,14 +2,17 @@ project(${CAMERA}_mjpeg_streamer)
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 14)
 
-if(${CAMERA} STREQUAL "ueye") # TODO: create a "select one" option
+set(CAMERA "UNDEFINED" CACHE STRING "Camera Backend")
+set_property(CACHE CAMERA PROPERTY STRINGS ueye realsense pylon)
+
+if("${CAMERA}" STREQUAL "ueye")
 link_directories(camera_${CAMERA} ${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/lib/)
 add_library(camera_${CAMERA} SHARED camera_${CAMERA}.cpp)
 target_include_directories(camera_${CAMERA} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/include/)
 target_link_libraries(camera_${CAMERA} ueye_api)
 endif()
 
-if(${CAMERA} STREQUAL "realsense")
+if("${CAMERA}" STREQUAL "realsense")
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/extern/librealsense/build/)
 add_library(camera_${CAMERA} SHARED camera_${CAMERA}.cpp)
 target_include_directories(camera_${CAMERA} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/extern/librealsense/include/)
