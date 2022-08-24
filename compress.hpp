@@ -4,4 +4,4 @@
 
 #include "types.hpp"
 
-binary_data compress(binary_data buffer, int width, int height, TJPF pixelFormat);
+binary_data compress(const binary_data & buffer, const int width, const int height, const TJPF pixelFormat);

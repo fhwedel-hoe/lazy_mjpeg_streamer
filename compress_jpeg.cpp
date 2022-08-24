@@ -1,9 +1,8 @@
 #include "compress.hpp"
 #include <vector>
 
-binary_data compress(binary_data buffer, int width, int height, TJPF pixelFormat) {
+binary_data compress(const binary_data & buffer, const int width, const int height, const TJPF pixelFormat) {
     const int JPEG_QUALITY = 85;
-    const int COLOR_COMPONENTS = 3;
     long unsigned int jpegSize = 0;
     unsigned char* compressedImage = 0;
 

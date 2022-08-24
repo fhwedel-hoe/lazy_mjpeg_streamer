@@ -2,11 +2,13 @@
 
 Low-latency MJPEG-over-HTTP server.
 
-This server differs from ffserver, [mjpg-streamer](https://github.com/jacksonliam/mjpg-streamer) and [streameye](https://github.com/ccrisan/streameye) as this server only captures and compresses frames as long as there are actually viewers. If there are no viewers, the camera is switched off. This helps lowering overall power consumption and development of heat.
+This server differs from ffserver, [mjpg-streamer](https://github.com/jacksonliam/mjpg-streamer) and [streameye](https://github.com/ccrisan/streameye) as this server only captures and compresses frames as long as there are actually viewers. If there are no viewers, the camera is switched off. This helps lowering overall power consumption and development of heat for a longer camera life.
 
-Depends on libjpeg-turbo and boost::asio.
+Depends on boost::asio and libjpeg-turbo (aka. libturbojpeg).
 
-Tested on Ubuntu 18.04 amd64 Linux.
+Can also compress with WebP instead of JPEG.
+
+Tested on Ubuntu 22.04 amd64 Linux.
 
 Available sources:
 

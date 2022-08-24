@@ -51,10 +51,10 @@ class StreamWriter {
       int i = ipc.readers.update([](unsigned int & i){return --i;});
       std::cerr << "Viewer disconnected. Readers remaining: " << i << "\n";
     }
-    size_t send(tcp::socket & socket, const std::vector<unsigned char> & d) {
+    size_t send_image(tcp::socket & socket, const std::vector<unsigned char> & d) {
       std::ostringstream answer; answer <<
         "--BOUNDARY\r\n" << 
-        "Content-Type: image/jpeg\r\n" <<
+        "Content-Type: image/" << COMPRESSOR << "\r\n" <<
         "Content-Length: " << d.size() << "\r\n" <<
         "\r\n";
       size_t sent = 0;
@@ -64,19 +64,17 @@ class StreamWriter {
       return sent;
     }
     void stream(tcp::socket & socket) {
-      this->send(socket, placeholder);
+      this->send_image(socket, placeholder);
       for (;;) {
-        this->send(socket, ipc.data.read());
+        this->send_image(socket, ipc.data.read());
       }
     }
 };
 
 void session(tcp::socket socket, IPC_globals & ipc) {
-  
   boost::asio::streambuf buffer(http_header_line_max_length);
   std::string answer("HTTP/1.1 500 Internal Server Error\r\nConnection: Closed\r\n\r\n");
   try {
-    
     std::string request_header = read_line_from_buffered_socket(socket, buffer);
     if (request_header == "GET / HTTP/1.1") {
       answer = "HTTP/1.1 200 OK\r\n" \
@@ -87,7 +85,6 @@ void session(tcp::socket socket, IPC_globals & ipc) {
     } else {
       throw unsupported_request_line_error();
     }
-    
   } catch (unsupported_request_line_error & urle) {
     answer = "HTTP/1.1 400 Bad Request\r\nConnection: Closed\r\n\r\n";
   } catch (boost::system::system_error & bsse) {
