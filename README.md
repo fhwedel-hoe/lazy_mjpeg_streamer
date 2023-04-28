@@ -1,5 +1,6 @@
 # lazy_mjpeg_streamer
-MJPEG-over-HTTP server.
+
+Low-latency MJPEG-over-HTTP server.
 
 This server differs from ffserver, [mjpg-streamer](https://github.com/jacksonliam/mjpg-streamer) and [streameye](https://github.com/ccrisan/streameye) as this server only captures and compresses frames as long as there are actually viewers. If there are no viewers, the camera is switched off. This helps lowering overall power consumption and development of heat.
 
