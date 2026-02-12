@@ -113,15 +113,15 @@ void session(tcp::socket socket, IPC_globals & ipc) {
   }
 }
 
-void server(boost::asio::io_service& io_service, unsigned short port, IPC_globals & ipc) {
+void server(boost::asio::io_context &io_context, unsigned short port, IPC_globals & ipc) {
   //tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v6(), port));
   //tcp::acceptor acceptor(io_service, tcp::endpoint(boost::asio::ip::address::from_string("::1"), port));
-  tcp::acceptor acceptor(io_service, tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), port));
+  tcp::acceptor acceptor(io_context, tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), port));
   std::cerr << "HTTP server listening on " <<
     acceptor.local_endpoint().address().to_string() << ":"
     << acceptor.local_endpoint().port() << "..." << std::endl;
   for (;;) {
-    tcp::socket sock(io_service);
+    tcp::socket sock(io_context);
     acceptor.accept(sock);
     std::thread(session, std::move(sock), std::ref(ipc)).detach();
   }

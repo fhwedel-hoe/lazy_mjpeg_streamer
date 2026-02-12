@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CAMERA "UNDEFINED" CACHE STRING "Camera Backend")
-set_property(CACHE CAMERA PROPERTY STRINGS ueye realsense pylon)
+set(CAMERA "ffmpeg" CACHE STRING "Camera Backend")
+set_property(CACHE CAMERA PROPERTY STRINGS none ueye realsense pylon ffmpeg)
 
 set(COMPRESSOR "jpeg" CACHE STRING "Compressor")
 set_property(CACHE COMPRESSOR PROPERTY STRINGS jpeg webp)
 
 project(${CAMERA}_${COMPRESSOR}_streamer)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 23)
 
 add_library(camera_${CAMERA} STATIC camera_${CAMERA}.cpp)
 
@@ -29,9 +29,24 @@ target_link_directories(camera_${CAMERA} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/exte
 target_link_libraries(camera_${CAMERA} pylonbase GenApi_gcc_v3_1_Basler_pylon GCBase_gcc_v3_1_Basler_pylon)
 endif()
 
+
+if("${CAMERA}" STREQUAL "ffmpeg")
+#target_include_directories(camera_${CAMERA} PUBLIC /usr/include)
+#target_link_directories(camera_${CAMERA} PUBLIC /usr/lib/x86_64-linux-gnu)
+#target_link_libraries(camera_${CAMERA} PUBLIC avformat avcodec avutil)
+#target_link_libraries(camera_${CAMERA} PUBLIC /usr/lib/x86_64-linux-gnu/libavformat.so)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswscale)
+    target_include_directories(camera_${CAMERA} PUBLIC ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(camera_${CAMERA} PUBLIC ${FFMPEG_LIBRARIES})
+    # message(STATUS "FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES}")
+    # target_compile_options(camera_${CAMERA} PUBLIC ${FFMPEG_CFLAGS_OTHER})
+endif()
+
 add_executable(${PROJECT_NAME} serve.cpp main.cpp compress_${COMPRESSOR}.cpp placeholder_${COMPRESSOR}.cpp)
 target_compile_definitions(${PROJECT_NAME} PUBLIC COMPRESSOR="${COMPRESSOR}")
-target_link_libraries(${PROJECT_NAME} camera_${CAMERA} turbojpeg boost_thread boost_system pthread)
+target_link_libraries(${PROJECT_NAME} camera_${CAMERA} turbojpeg boost_thread pthread)
 if("${COMPRESSOR}" STREQUAL "webp")
+    # linking against turbojpeg is not optional since the webp code uses the JPEG enums for discriminating the pixel formats
     target_link_libraries(${PROJECT_NAME} webp)
 endif()
