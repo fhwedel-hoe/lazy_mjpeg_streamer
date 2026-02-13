@@ -12,6 +12,10 @@ class Camera_ffmpeg : public Camera {
         ~Camera_ffmpeg();
         virtual RawImage grab_frame();
     private:
-        const char * source;
-        AVFormatContext * format_ctx;
+        const char * source = nullptr;
+        AVFormatContext * format_ctx = nullptr;
+        unsigned int video_stream_index = -1;
+        AVCodecContext * codec_ctx = nullptr;
+    AVPacket* packet = nullptr;
+    AVFrame* frame = nullptr;
 };
