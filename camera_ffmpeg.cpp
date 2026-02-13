@@ -3,10 +3,12 @@
 extern "C"{
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
 }
 #include <stdexcept>
 #include <iostream>
+#include <vector>
 
 extern "C"
 {
@@ -86,40 +88,56 @@ Camera_ffmpeg::~Camera_ffmpeg()
 
 RawImage Camera_ffmpeg::grab_frame()
 {
-    
+    std::shared_ptr<RawImage> output;
     if (av_read_frame(format_ctx, packet) < 0) {
         std::cerr << "av_read_frame failed." << std::endl;
     } else {
+        std::cerr << "packet->stream_index is " << packet->stream_index << std::endl;
         if (packet->stream_index == video_stream_index) {
-            if (avcodec_send_packet(codec_ctx, packet) == 0) {
+            if (avcodec_send_packet(codec_ctx, packet) != 0) {
+                std::cerr << "avcodec_send_packet failed." << std::endl;
+            } else {
                 if (avcodec_receive_frame(codec_ctx, frame) == 0) {
                     std::cout << "Decoded one frame: width=" << frame->width
                                 << ", height=" << frame->height << std::endl;
-                    AVFrame* rgb_frame = av_frame_alloc();
-                    int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
-                    std::vector<unsigned char> buffer(num_bytes);
-
-                    av_image_fill_arrays(rgb_frame->data, rgb_frame->linesize, buffer.data(), AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
-
+                    
                     struct SwsContext* sws_ctx = sws_getContext(
                         frame->width, frame->height, static_cast<AVPixelFormat>(frame->format),
                         frame->width, frame->height, AV_PIX_FMT_RGB24,
                         SWS_BILINEAR, nullptr, nullptr, nullptr);
-
+                    
+                    if (!sws_ctx) {
+                        std::cerr << "sws_getContext failed." << std::endl;
+                    } else {
+                    
+                    AVFrame* rgb_frame = av_frame_alloc();
+                    av_image_alloc(rgb_frame->data, rgb_frame->linesize, frame->width, frame->height, AV_PIX_FMT_RGB24, 1);
                     sws_scale(
                         sws_ctx,
                         frame->data, frame->linesize,
                         0, frame->height,
                         rgb_frame->data, rgb_frame->linesize);
 
-                    RawImage output(buffer, frame->width, frame->height, TJPF_RGB);
+                    int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
+                    std::vector<unsigned char> buffer(num_bytes);
+                    av_image_copy_to_buffer(
+                        buffer.data(), num_bytes,
+                        rgb_frame->data, rgb_frame->linesize,
+                        AV_PIX_FMT_RGB24, frame->width, frame->height, 1
+                    );
+                    output = std::make_shared<RawImage>(buffer, frame->width, frame->height, TJPF_RGB);
 
                     sws_freeContext(sws_ctx);
                     av_frame_free(&rgb_frame);
+                    }
                 }
             }
         }
         av_packet_unref(packet);
     }
-    return;
+    if (nullptr == output) {
+        // TODO: rendere error message into image
+        return RawImage(std::vector<unsigned char>(3*16*16), 16, 16, TJPF_RGB);
+    }
+    return *output;
 }
