@@ -12,7 +12,7 @@ binary_data compress(const binary_data & buffer, const int width, const int heig
         buffer.data(), 
         width, 0, height, pixelFormat,
         &compressedImage, &jpegSize, 
-        TJSAMP_444, JPEG_QUALITY, TJFLAG_FASTDCT
+        TJSAMP_420, JPEG_QUALITY, TJFLAG_FASTDCT
     );
     tjDestroy(_jpegCompressor);
     binary_data image_compressed(compressedImage,compressedImage+jpegSize);
