@@ -21,6 +21,7 @@ extern "C"
 
 Camera_ffmpeg::Camera_ffmpeg() : Camera()
 {
+    av_log_set_level(AV_LOG_ERROR);
     avformat_network_init();
     source = std::getenv("FFMPEG_SOURCE");
     if (nullptr == source)
@@ -136,9 +137,9 @@ RawImage Camera_ffmpeg::grab_frame()
                     else
                     {
                         //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
-
                         AVFrame *rgb_frame = av_frame_alloc();
                         av_image_alloc(rgb_frame->data, rgb_frame->linesize, frame->width, frame->height, AV_PIX_FMT_RGB24, 1);
+                        
                         sws_scale(
                             sws_ctx,
                             frame->data, frame->linesize,
@@ -152,7 +153,8 @@ RawImage Camera_ffmpeg::grab_frame()
                             rgb_frame->data, rgb_frame->linesize,
                             AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
                         output = std::make_shared<RawImage>(buffer, frame->width, frame->height, TJPF_RGB);
-
+                        
+                        av_freep(rgb_frame->data);
                         av_frame_free(&rgb_frame);
                     }
                 }
