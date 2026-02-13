@@ -6,11 +6,12 @@
 
 class RawImage {
     public:
-        RawImage(const std::vector<unsigned char> data, const unsigned int width, const unsigned int height, const TJPF pixelFormat) : 
-        data(data), width(width), height(height), pixelFormat(pixelFormat) {};
+        RawImage(const std::vector<unsigned char> data, const unsigned int width, const unsigned int height, const TJCS colorSpace, const TJPF pixelFormat) : 
+        data(data), width(width), height(height), colorSpace(colorSpace), pixelFormat(pixelFormat) {};
         const std::vector<unsigned char> data;
         const unsigned int width;
         const unsigned int height;
+        const TJCS colorSpace;
         const TJPF pixelFormat;
 };
 

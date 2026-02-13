@@ -31,16 +31,11 @@ endif()
 
 
 if("${CAMERA}" STREQUAL "ffmpeg")
-#target_include_directories(camera_${CAMERA} PUBLIC /usr/include)
-#target_link_directories(camera_${CAMERA} PUBLIC /usr/lib/x86_64-linux-gnu)
-#target_link_libraries(camera_${CAMERA} PUBLIC avformat avcodec avutil)
-#target_link_libraries(camera_${CAMERA} PUBLIC /usr/lib/x86_64-linux-gnu/libavformat.so)
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswscale)
+    pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil)
     target_include_directories(camera_${CAMERA} PUBLIC ${FFMPEG_INCLUDE_DIRS})
     target_link_libraries(camera_${CAMERA} PUBLIC ${FFMPEG_LIBRARIES})
-    # message(STATUS "FFMPEG_LIBRARIES ${FFMPEG_LIBRARIES}")
-    # target_compile_options(camera_${CAMERA} PUBLIC ${FFMPEG_CFLAGS_OTHER})
+    target_compile_options(camera_${CAMERA} PUBLIC ${FFMPEG_CFLAGS_OTHER})
 endif()
 
 add_executable(${PROJECT_NAME} serve.cpp main.cpp compress_${COMPRESSOR}.cpp placeholder_${COMPRESSOR}.cpp)

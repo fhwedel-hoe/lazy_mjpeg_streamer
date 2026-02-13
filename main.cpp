@@ -26,7 +26,7 @@ void capture(IPC_globals & ipc) {
                 RawImage raw_image = camera->grab_frame();
                 /* compress image data */
                 binary_data image_compressed = 
-                    compress(raw_image.data, raw_image.width, raw_image.height, raw_image.pixelFormat);
+                    compress(raw_image.data, raw_image.width, raw_image.height, raw_image.colorSpace, raw_image.pixelFormat);
                 /* publish for readers */
                 ipc.data.publish(image_compressed);
             }
