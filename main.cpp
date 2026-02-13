@@ -45,8 +45,8 @@ const unsigned short server_port = 8080;
 int main(int, char**) {
     std::thread(capture, std::ref(ipc_globals)).detach();
     try {
-        boost::asio::io_service io_service;
-        server(io_service, server_port, ipc_globals);
+        boost::asio::io_context io_context;
+        server(io_context, server_port, ipc_globals);
     } catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << "\n";
     }
