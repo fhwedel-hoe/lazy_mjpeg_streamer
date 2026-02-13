@@ -2,7 +2,9 @@
 
 #include "camera.hpp"
 
+extern "C" {
 #include <libavformat/avformat.h>
+}
 
 class Camera_ffmpeg : public Camera {
     public:
