@@ -18,7 +18,6 @@ class Camera_ffmpeg : public Camera {
         AVCodecParameters * codecpar = nullptr;
         unsigned int video_stream_index = -1;
         AVCodecContext * codec_ctx = nullptr;
-        struct SwsContext * sws_ctx = nullptr;
         AVPacket * packet = nullptr;
         AVFrame * frame = nullptr;
 };

@@ -4,7 +4,6 @@ extern "C"
 {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
-#include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
 }
 #include <stdexcept>
@@ -63,36 +62,27 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera()
                 else
                 {
                     codecpar = format_ctx->streams[video_stream_index]->codecpar;
-                    sws_ctx = sws_getContext(codecpar->width, codecpar->height, static_cast<AVPixelFormat>(codecpar->format), codecpar->width, codecpar->height, AV_PIX_FMT_RGB24, SWS_POINT, nullptr, nullptr, nullptr);
-                    if (!sws_ctx)
+                    const AVCodec *codec = avcodec_find_decoder(codecpar->codec_id);
+                    if (!codec)
                     {
-                        std::cerr << "sws_getContext failed." << std::endl;
+                        std::cerr << "Codec not found." << std::endl;
                     }
                     else
                     {
-
-                        const AVCodec *codec = avcodec_find_decoder(codecpar->codec_id);
-                        if (!codec)
+                        codec_ctx = avcodec_alloc_context3(codec);
+                        if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0)
                         {
-                            std::cerr << "Codec not found." << std::endl;
+                            std::cerr << "Failed to copy codec parameters." << std::endl;
+                        }
+                        else if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
+                        {
+                            std::cerr << "Failed to open codec." << std::endl;
                         }
                         else
                         {
-                            codec_ctx = avcodec_alloc_context3(codec);
-                            if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0)
-                            {
-                                std::cerr << "Failed to copy codec parameters." << std::endl;
-                            }
-                            else if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
-                            {
-                                std::cerr << "Failed to open codec." << std::endl;
-                            }
-                            else
-                            {
-                                packet = av_packet_alloc();
-                                frame = av_frame_alloc();
-                                //std::cerr << "Codec ready to process frames." << std::endl;
-                            }
+                            packet = av_packet_alloc();
+                            frame = av_frame_alloc();
+                            //std::cerr << "Codec ready to process frames." << std::endl;
                         }
                     }
                 }
@@ -106,7 +96,6 @@ Camera_ffmpeg::~Camera_ffmpeg()
     av_frame_free(&frame);
     av_packet_free(&packet);
     avcodec_free_context(&codec_ctx);
-    sws_freeContext(sws_ctx);
     avformat_network_deinit();
 }
 
@@ -130,32 +119,24 @@ RawImage Camera_ffmpeg::grab_frame()
             {
                 if (avcodec_receive_frame(codec_ctx, frame) == 0)
                 {
+                    //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
                     if (frame->width != codecpar->width || frame->height != codecpar->height)
                     {
                         std::cerr << "Streams with variable frame dimensions are not supported." << std::endl;
                     }
                     else
                     {
-                        //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
-                        AVFrame *rgb_frame = av_frame_alloc();
-                        av_image_alloc(rgb_frame->data, rgb_frame->linesize, frame->width, frame->height, AV_PIX_FMT_RGB24, 1);
-                        
-                        sws_scale(
-                            sws_ctx,
-                            frame->data, frame->linesize,
-                            0, frame->height,
-                            rgb_frame->data, rgb_frame->linesize);
-
-                        int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
-                        std::vector<unsigned char> buffer(num_bytes);
-                        av_image_copy_to_buffer(
-                            buffer.data(), num_bytes,
-                            rgb_frame->data, rgb_frame->linesize,
-                            AV_PIX_FMT_RGB24, frame->width, frame->height, 1);
-                        output = std::make_shared<RawImage>(buffer, frame->width, frame->height, TJPF_RGB);
-                        
-                        av_freep(rgb_frame->data);
-                        av_frame_free(&rgb_frame);
+                        if (AV_PIX_FMT_YUV420P != static_cast<AVPixelFormat>(frame->format)) {
+                            std::cerr << "frame is not yuv420p, but " << av_get_pix_fmt_name(static_cast<AVPixelFormat>(frame->format)) << std::endl;
+                        } else {
+                            int num_bytes = av_image_get_buffer_size(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1);
+                            std::vector<unsigned char> buffer(num_bytes);
+                            av_image_copy_to_buffer(
+                                buffer.data(), num_bytes, frame->data, frame->linesize,
+                                static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1
+                            );
+                            output = std::make_shared<RawImage>(buffer, frame->width, frame->height, TJCS_YCbCr, TJPF_UNKNOWN);
+                        }
                     }
                 }
             }
@@ -165,7 +146,7 @@ RawImage Camera_ffmpeg::grab_frame()
     if (nullptr == output)
     {
         // TODO: render error message into image
-        return RawImage(std::vector<unsigned char>(3 * 16 * 16), 16, 16, TJPF_RGB);
+        return RawImage(std::vector<unsigned char>(3 * 16 * 16), 16, 16, TJCS_RGB, TJPF_RGB);
     }
     return *output;
 }

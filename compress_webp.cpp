@@ -2,7 +2,7 @@
 #include <webp/encode.h>
 #include <type_traits>
 
-binary_data compress(const binary_data & buffer, const int width, const int height, const TJPF pixelFormat) {
+binary_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
     const int & stride = width;
     const float quality_factor = 85;
     uint8_t *compressedImage = nullptr;
