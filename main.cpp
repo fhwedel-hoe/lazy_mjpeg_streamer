@@ -16,19 +16,27 @@
 void capture(IPC_globals & ipc) {
     for (;;) { // stream forever
         try { // do not break loop due to exceptions
-            ipc.readers.read(); // wait for reader
+            if (ipc.readers.read_unsafe() == 0) {
+                std::cerr << "Waiting for a reader…" << std::endl;
+                ipc.readers.read();
+            }
             std::cerr << "Initializing camera for new recording session..." << std::endl;
             std::unique_ptr<Camera> camera = init_camera();
             std::cerr << "Camera initialized, starting stream..." << std::endl;
             /* capture a single image and submit it to the streaming library */
             while (ipc.readers.read_unsafe() > 0) {
                 /* grab raw image data frame */
-                RawImage raw_image = camera->grab_frame();
-                /* compress image data */
-                binary_data image_compressed = 
-                    compress(raw_image.data, raw_image.width, raw_image.height, raw_image.colorSpace, raw_image.pixelFormat);
-                /* publish for readers */
-                ipc.data.publish(image_compressed);
+                std::expected<RawImage, Camera::GrabError> expected_image = camera->grab_frame();
+                if (expected_image.has_value()) {
+                    RawImage & raw_image = expected_image.value();
+                    /* compress image data */
+                    binary_data image_compressed = 
+                        compress(raw_image.data, raw_image.width, raw_image.height, raw_image.colorSpace, raw_image.pixelFormat);
+                    /* publish for readers */
+                    ipc.data.publish(image_compressed);
+                } else {
+                    std::cerr << expected_image.error().what() << std::endl; 
+                }
             }
             std::cerr << "Stopping camera due to lack of viewers..." << std::endl; 
             // ^^ happens implicitly during destructor

@@ -9,6 +9,7 @@ extern "C"
 #include <stdexcept>
 #include <iostream>
 #include <vector>
+#include <optional>
 
 extern "C"
 {
@@ -20,6 +21,7 @@ extern "C"
 
 Camera_ffmpeg::Camera_ffmpeg() : Camera()
 {
+    std::optional<std::string> error;
     const char *loglevel = std::getenv("FFMPEG_LOGLEVEL");
     if (nullptr != loglevel) {
         av_log_set_level(std::stoi(loglevel));
@@ -28,21 +30,21 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera()
     source = std::getenv("FFMPEG_SOURCE");
     if (nullptr == source)
     {
-        std::cerr << "FFMPEG_SOURCE environment variable not set." << std::endl;
+        error = "FFMPEG_SOURCE environment variable not set.";
     }
     else
     {
         format_ctx = avformat_alloc_context();
         if (avformat_open_input(&format_ctx, source, nullptr, nullptr) < 0)
         {
-            std::cerr << "Failed to open input: " << source << std::endl;
+            error = "Failed to open input: " + std::string(source);
         }
         else
         {
 
             if (avformat_find_stream_info(format_ctx, nullptr) < 0)
             {
-                std::cerr << "Failed to find stream info" << std::endl;
+                error = "Failed to find stream info";
             }
             else
             {
@@ -60,7 +62,7 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera()
                 }
                 if (video_stream_index == -1)
                 {
-                    std::cerr << "No video stream found." << std::endl;
+                    error = "No video stream found.";
                 }
                 else
                 {
@@ -68,18 +70,18 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera()
                     const AVCodec *codec = avcodec_find_decoder(codecpar->codec_id);
                     if (!codec)
                     {
-                        std::cerr << "Codec not found." << std::endl;
+                        error = "Codec not found.";
                     }
                     else
                     {
                         codec_ctx = avcodec_alloc_context3(codec);
                         if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0)
                         {
-                            std::cerr << "Failed to copy codec parameters." << std::endl;
+                            error = "Failed to copy codec parameters.";
                         }
                         else if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
                         {
-                            std::cerr << "Failed to open codec." << std::endl;
+                            error = "Failed to open codec.";
                         }
                         else
                         {
@@ -92,64 +94,52 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera()
             }
         }
     }
+    if (error.has_value()) {
+        destroy();
+        throw InitializationError(error.value());
+    }
 }
 
-Camera_ffmpeg::~Camera_ffmpeg()
-{
+void Camera_ffmpeg::destroy() {
     av_frame_free(&frame);
     av_packet_free(&packet);
     avcodec_free_context(&codec_ctx);
     avformat_network_deinit();
 }
 
-RawImage Camera_ffmpeg::grab_frame()
+Camera_ffmpeg::~Camera_ffmpeg() {
+    destroy();
+}
+
+std::expected<RawImage, Camera::GrabError> Camera_ffmpeg::grab_frame()
 {
-    std::shared_ptr<RawImage> output;
-    if (av_read_frame(format_ctx, packet) < 0)
-    {
-        std::cerr << "av_read_frame failed." << std::endl;
+    if (av_read_frame(format_ctx, packet) < 0) {
+        return std::unexpected(GrabError("av_read_frame failed."));
     }
-    else
-    {
-        //std::cerr << "packet->stream_index is " << packet->stream_index << std::endl;
-        if (packet->stream_index == video_stream_index)
-        {
-            if (avcodec_send_packet(codec_ctx, packet) != 0)
-            {
-                std::cerr << "avcodec_send_packet failed." << std::endl;
-            }
-            else
-            {
-                if (avcodec_receive_frame(codec_ctx, frame) == 0)
-                {
-                    //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
-                    if (frame->width != codecpar->width || frame->height != codecpar->height)
-                    {
-                        std::cerr << "Streams with variable frame dimensions are not supported." << std::endl;
-                    }
-                    else
-                    {
-                        if (AV_PIX_FMT_YUV420P != static_cast<AVPixelFormat>(frame->format)) {
-                            std::cerr << "frame is not yuv420p, but " << av_get_pix_fmt_name(static_cast<AVPixelFormat>(frame->format)) << std::endl;
-                        } else {
-                            int num_bytes = av_image_get_buffer_size(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1);
-                            std::vector<unsigned char> buffer(num_bytes);
-                            av_image_copy_to_buffer(
-                                buffer.data(), num_bytes, frame->data, frame->linesize,
-                                static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1
-                            );
-                            output = std::make_shared<RawImage>(buffer, frame->width, frame->height, TJCS_YCbCr, TJPF_UNKNOWN);
-                        }
-                    }
-                }
-            }
-        }
-        av_packet_unref(packet);
+    // packet has been populated, remember to unref it no matter where we return
+    std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet_guard(packet, &av_packet_unref);
+    if (packet->stream_index != video_stream_index) {
+        return std::unexpected(Camera::GrabError("Multi-stream input is not supported."));
     }
-    if (nullptr == output)
-    {
-        // TODO: render error message into image
-        return RawImage(std::vector<unsigned char>(3 * 16 * 16), 16, 16, TJCS_RGB, TJPF_RGB);
+    if (avcodec_send_packet(codec_ctx, packet) != 0) {
+        return std::unexpected(Camera::GrabError("avcodec_send_packet failed."));
     }
-    return *output;
+    if (avcodec_receive_frame(codec_ctx, frame) != 0) {
+        return std::unexpected(Camera::GrabError("avcodec_receive_frame failed."));
+    }
+    //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
+    if (frame->width != codecpar->width || frame->height != codecpar->height) {
+        return std::unexpected(Camera::GrabError("Streams with variable frame dimensions are not supported."));
+    }
+    if (AV_PIX_FMT_YUV420P != static_cast<AVPixelFormat>(frame->format)) {
+        return std::unexpected(Camera::GrabError(std::string("Only yuv420p is supported, but frame was ") + av_get_pix_fmt_name(static_cast<AVPixelFormat>(frame->format))));
+    }
+    
+    int num_bytes = av_image_get_buffer_size(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1);
+    std::vector<unsigned char> buffer(num_bytes);
+    av_image_copy_to_buffer(
+        buffer.data(), num_bytes, frame->data, frame->linesize,
+        static_cast<AVPixelFormat>(frame->format), frame->width, frame->height, 1
+    );
+    return RawImage(buffer, frame->width, frame->height, TJCS_YCbCr, TJPF_UNKNOWN);
 }
