@@ -11,8 +11,9 @@ class Camera_ffmpeg : public Camera {
     public:
         Camera_ffmpeg();
         ~Camera_ffmpeg();
-        virtual RawImage grab_frame();
+        virtual std::expected<RawImage, Camera::GrabError> grab_frame();
     private:
+        void destroy();
         const char * source = nullptr;
         AVFormatContext * format_ctx = nullptr;
         AVCodecParameters * codecpar = nullptr;

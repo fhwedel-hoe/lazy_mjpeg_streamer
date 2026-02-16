@@ -3,6 +3,7 @@
 #include <turbojpeg.h>
 #include <vector>
 #include <memory>
+#include <expected>
 
 class RawImage {
     public:
@@ -17,7 +18,13 @@ class RawImage {
 
 class Camera {
     public:
-        virtual RawImage grab_frame() = 0;
+        class InitializationError : public std::runtime_error {
+            using std::runtime_error::runtime_error;
+        };
+        class GrabError : public std::runtime_error {
+            using std::runtime_error::runtime_error;
+        };
+        virtual std::expected<RawImage, Camera::GrabError> grab_frame() = 0;
         virtual ~Camera() {};
 };
 
