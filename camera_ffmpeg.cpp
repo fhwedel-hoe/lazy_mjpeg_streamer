@@ -20,7 +20,10 @@ extern "C"
 
 Camera_ffmpeg::Camera_ffmpeg() : Camera()
 {
-    av_log_set_level(AV_LOG_ERROR);
+    const char *loglevel = std::getenv("FFMPEG_LOGLEVEL");
+    if (nullptr != loglevel) {
+        av_log_set_level(std::stoi(loglevel));
+    }
     avformat_network_init();
     source = std::getenv("FFMPEG_SOURCE");
     if (nullptr == source)
