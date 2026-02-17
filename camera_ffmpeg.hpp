@@ -3,8 +3,8 @@
 #include "camera.hpp"
 
 extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
+    #include <libavformat/avformat.h>
+    #include <libavcodec/avcodec.h>
 }
 
 class Camera_ffmpeg : public Camera {
