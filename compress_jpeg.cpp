@@ -1,9 +1,10 @@
 #include "compress.hpp"
+#include "util.hpp"
 #include <vector>
 #include <iostream>
 
 binary_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
-    const int JPEG_QUALITY = 85;
+    const int JPEG_QUALITY = util::getenv<int>("JPEG_QUALITY").value_or(85);
     long unsigned int jpegSize = 0;
     unsigned char* compressedImage = 0;
 

@@ -1,18 +1,15 @@
 #include "camera_ffmpeg.hpp"
-
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/imgutils.h>
-}
+#include "util.hpp"
 #include <stdexcept>
 #include <iostream>
 #include <vector>
-#include <optional>
 
 extern "C"
 {
+    #include <libavformat/avformat.h>
+    #include <libavcodec/avcodec.h>
+    #include <libavutil/imgutils.h>
+
     std::unique_ptr<Camera> init_camera()
     {
         return std::make_unique<Camera_ffmpeg>();
@@ -22,10 +19,7 @@ extern "C"
 Camera_ffmpeg::Camera_ffmpeg() : Camera()
 {
     std::optional<std::string> error;
-    const char *loglevel = std::getenv("FFMPEG_LOGLEVEL");
-    if (nullptr != loglevel) {
-        av_log_set_level(std::stoi(loglevel));
-    }
+    av_log_set_level(util::getenv<int>("FFMPEG_LOGLEVEL").value_or(16));
     avformat_network_init();
     source = std::getenv("FFMPEG_SOURCE");
     if (nullptr == source)

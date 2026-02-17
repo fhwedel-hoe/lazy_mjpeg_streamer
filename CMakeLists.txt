@@ -38,7 +38,7 @@ if("${CAMERA}" STREQUAL "ffmpeg")
     target_compile_options(camera_${CAMERA} PUBLIC ${FFMPEG_CFLAGS_OTHER})
 endif()
 
-add_executable(${PROJECT_NAME} serve.cpp main.cpp compress_${COMPRESSOR}.cpp placeholder_${COMPRESSOR}.cpp)
+add_executable(${PROJECT_NAME} serve.cpp main.cpp util.cpp compress_${COMPRESSOR}.cpp placeholder_${COMPRESSOR}.cpp)
 target_compile_definitions(${PROJECT_NAME} PUBLIC COMPRESSOR="${COMPRESSOR}")
 target_link_libraries(${PROJECT_NAME} camera_${CAMERA} turbojpeg boost_thread pthread)
 if("${COMPRESSOR}" STREQUAL "webp")
