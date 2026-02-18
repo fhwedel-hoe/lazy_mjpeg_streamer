@@ -2,7 +2,7 @@
 #include <webp/encode.h>
 #include <type_traits>
 
-binary_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
+mimetyped_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
     const int & stride = width;
     const float quality_factor = 85;
     uint8_t *compressedImage = nullptr;
@@ -14,6 +14,6 @@ binary_data compress(const binary_data & buffer, const int width, const int heig
     } else {
         std::runtime_error("WebP needs RGB or BGR data. Input was neither.");
     }
-    binary_data image_compressed(compressedImage, compressedImage+output_size);
+    mimetyped_data image_compressed(compressedImage, compressedImage+output_size);
     return image_compressed;
 }

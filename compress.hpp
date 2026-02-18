@@ -4,4 +4,4 @@
 
 #include "types.hpp"
 
-binary_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat);
+mimetyped_data compress(const std::vector<unsigned char> & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat);
