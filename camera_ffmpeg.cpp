@@ -18,83 +18,59 @@ extern "C"
 
 Camera_ffmpeg::Camera_ffmpeg() : Camera()
 {
-    std::optional<std::string> error;
-    av_log_set_level(util::getenv<int>("FFMPEG_LOGLEVEL").value_or(16));
-    avformat_network_init();
-    source = std::getenv("FFMPEG_SOURCE");
-    if (nullptr == source)
-    {
-        error = "FFMPEG_SOURCE environment variable not set.";
-    }
-    else
-    {
-        format_ctx = avformat_alloc_context();
-        if (avformat_open_input(&format_ctx, source, nullptr, nullptr) < 0)
-        {
-            error = "Failed to open input: " + std::string(source);
-        }
-        else
-        {
-
-            if (avformat_find_stream_info(format_ctx, nullptr) < 0)
-            {
-                error = "Failed to find stream info";
-            }
-            else
-            {
-                //std::cout << "Format: " << format_ctx->iformat->name << std::endl;
-                //std::cout << "Number of streams: " << format_ctx->nb_streams << std::endl;
-
-                video_stream_index = -1;
-                for (unsigned int i = 0; i < format_ctx->nb_streams; ++i)
-                {
-                    if (format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-                    {
-                        video_stream_index = i;
-                        break;
-                    }
-                }
-                if (video_stream_index == -1)
-                {
-                    error = "No video stream found.";
-                }
-                else
-                {
-                    codecpar = format_ctx->streams[video_stream_index]->codecpar;
-                    const AVCodec *codec = avcodec_find_decoder(codecpar->codec_id);
-                    if (!codec)
-                    {
-                        error = "Codec not found.";
-                    }
-                    else
-                    {
-                        codec_ctx = avcodec_alloc_context3(codec);
-                        if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0)
-                        {
-                            error = "Failed to copy codec parameters.";
-                        }
-                        else if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
-                        {
-                            error = "Failed to open codec.";
-                        }
-                        else
-                        {
-                            packet = av_packet_alloc();
-                            frame = av_frame_alloc();
-                            //std::cerr << "Codec ready to process frames." << std::endl;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if (error.has_value()) {
+    try {
+        initialize();
+    } catch (std::exception) {
         destroy();
-        throw InitializationError(error.value());
+        throw;
     }
 }
 
+void Camera_ffmpeg::initialize() {
+    av_log_set_level(util::getenv<int>("FFMPEG_LOGLEVEL").value_or(16));
+    avformat_network_init();
+    source = std::getenv("FFMPEG_SOURCE");
+    if (nullptr == source) {
+        throw Camera::InitializationError("FFMPEG_SOURCE environment variable not set.");
+    }
+    format_ctx = avformat_alloc_context();
+    if (avformat_open_input(&format_ctx, source, nullptr, nullptr) < 0) {
+        throw Camera::InitializationError("avformat_open_input failed.");
+    }
+    if (avformat_find_stream_info(format_ctx, nullptr) < 0) {
+        throw Camera::InitializationError("Failed to find stream info");
+    }
+    //std::cout << "Format: " << format_ctx->iformat->name << std::endl;
+    //std::cout << "Number of streams: " << format_ctx->nb_streams << std::endl;
+    video_stream_index = -1;
+    for (unsigned int i = 0; i < format_ctx->nb_streams; ++i) {
+        if (format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            video_stream_index = i;
+            break;
+        }
+    }
+    if (video_stream_index == -1) {
+        throw Camera::InitializationError("No video stream available.");
+    }
+    codecpar = format_ctx->streams[video_stream_index]->codecpar;
+    const AVCodec *codec = avcodec_find_decoder(codecpar->codec_id);
+    if (nullptr == codec) {
+        throw Camera::InitializationError("Codec not found.");
+    }
+    codec_ctx = avcodec_alloc_context3(codec);
+    if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0) {
+        throw Camera::InitializationError("Failed to copy codec parameters.");
+    }
+    if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
+        throw Camera::InitializationError("Failed to open codec.");
+    }
+    packet = av_packet_alloc();
+    frame = av_frame_alloc();
+    //std::cerr << "Codec ready to process frames." << std::endl;
+}
+
 void Camera_ffmpeg::destroy() {
+    avformat_close_input(&format_ctx);
     av_frame_free(&frame);
     av_packet_free(&packet);
     avcodec_free_context(&codec_ctx);
