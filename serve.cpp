@@ -51,22 +51,22 @@ class StreamWriter {
       int i = ipc.readers.update([](unsigned int & i){return --i;});
       std::cerr << "Viewer disconnected. Readers remaining: " << i << "\n";
     }
-    size_t send_image(tcp::socket & socket, const std::vector<unsigned char> & d) {
+    size_t send_data(tcp::socket & socket, const mimetyped_data & mimetyped_data) {
       std::ostringstream answer; answer <<
         "--BOUNDARY\r\n" << 
-        "Content-Type: image/" << COMPRESSOR << "\r\n" <<
-        "Content-Length: " << d.size() << "\r\n" <<
+        "Content-Type: " << mimetyped_data.mimetype << "\r\n" <<
+        "Content-Length: " << mimetyped_data.data.size() << "\r\n" <<
         "\r\n";
       size_t sent = 0;
       sent += boost::asio::write(socket, boost::asio::buffer(answer.str()));
-      sent += boost::asio::write(socket, boost::asio::buffer(d.data(), d.size()));
+      sent += boost::asio::write(socket, boost::asio::buffer(mimetyped_data.data.data(), mimetyped_data.data.size()));
       //std::cerr << "Sent " << sent << " bytes of data (" << d.size() << " bytes of user-data)." << std::endl;
       return sent;
     }
     void stream(tcp::socket & socket) {
-      this->send_image(socket, placeholder);
+      this->send_data(socket, placeholder);
       for (;;) {
-        this->send_image(socket, ipc.data.read());
+        this->send_data(socket, ipc.data.read());
       }
     }
 };

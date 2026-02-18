@@ -3,7 +3,7 @@
 #include <vector>
 #include <iostream>
 
-binary_data compress(const binary_data & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
+mimetyped_data compress(const std::vector<unsigned char> & buffer, const int width, const int height, const TJCS colorSpace, const TJPF pixelFormat) {
     const int JPEG_QUALITY = util::getenv<int>("JPEG_QUALITY").value_or(85);
     long unsigned int jpegSize = 0;
     unsigned char* compressedImage = 0;
@@ -28,7 +28,7 @@ binary_data compress(const binary_data & buffer, const int width, const int heig
         }
     }
     tjDestroy(_jpegCompressor);
-    binary_data image_compressed(compressedImage,compressedImage+jpegSize);
+    mimetyped_data image_compressed(std::vector<unsigned char>(compressedImage,compressedImage+jpegSize), "image/jpeg");
     tjFree(compressedImage);
     return image_compressed;
 }

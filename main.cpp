@@ -13,6 +13,8 @@
 #include "serve.hpp"
 #include "camera.hpp"
 
+constexpr static inline std::string_view errormessage_svg("<?xml version='1.0' encoding='UTF-8' standalone='no'?>\n<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:svg='http://www.w3.org/2000/svg'><text style='font-size:16px;font-family:monospace;' x='0' y='16' >ERROR: {}</text></svg>\n");
+
 void capture(IPC_globals & ipc) {
     for (;;) { // stream forever
         try { // do not break loop due to exceptions
@@ -30,16 +32,20 @@ void capture(IPC_globals & ipc) {
                 if (expected_image.has_value()) {
                     RawImage & raw_image = expected_image.value();
                     /* compress image data */
-                    binary_data image_compressed = 
-                        compress(raw_image.data, raw_image.width, raw_image.height, raw_image.colorSpace, raw_image.pixelFormat);
+                    mimetyped_data image_compressed = compress(raw_image.data, raw_image.width, raw_image.height, raw_image.colorSpace, raw_image.pixelFormat);
                     /* publish for readers */
                     ipc.data.publish(image_compressed);
                 } else {
-                    std::cerr << expected_image.error().what() << std::endl; 
+                    std::string message_image = std::format(errormessage_svg, expected_image.error().what());
+                    ipc.data.publish(mimetyped_data(std::vector<unsigned char>(message_image.begin(), message_image.end()), "image/svg+xml"));
                 }
             }
             std::cerr << "Stopping camera due to lack of viewers..." << std::endl; 
             // ^^ happens implicitly during destructor
+        } catch (Camera::InitializationError & cie) {
+            std::string message_image = std::format(errormessage_svg, cie.what());
+            ipc.data.publish(mimetyped_data(std::vector<unsigned char>(message_image.begin(), message_image.end()), "image/svg+xml"));
+            sleep(1);
         } catch (std::exception & se) {
             std::cerr << "Unexpected exception: " << se.what() << "\n";
         }

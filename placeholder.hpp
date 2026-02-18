@@ -2,4 +2,4 @@
 
 #include "types.hpp"
 
-extern const binary_data placeholder;
+extern const mimetyped_data placeholder;
