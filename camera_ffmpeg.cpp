@@ -16,28 +16,22 @@ extern "C"
     }
 }
 
-Camera_ffmpeg::Camera_ffmpeg() : Camera()
-{
-    try {
-        initialize();
-    } catch (std::exception) {
-        destroy();
-        throw;
-    }
-}
-
-void Camera_ffmpeg::initialize() {
+Camera_ffmpeg::Camera_ffmpeg() : Camera() {
     av_log_set_level(util::getenv<int>("FFMPEG_LOGLEVEL").value_or(16));
     avformat_network_init();
-    source = std::getenv("FFMPEG_SOURCE");
+    const char * source = std::getenv("FFMPEG_SOURCE");
     if (nullptr == source) {
         throw Camera::InitializationError("FFMPEG_SOURCE environment variable not set.");
     }
-    format_ctx = avformat_alloc_context();
-    if (avformat_open_input(&format_ctx, source, nullptr, nullptr) < 0) {
-        throw Camera::InitializationError("avformat_open_input failed.");
+    {
+        AVFormatContext *_format_ctx = nullptr; // will be allocated by avformat_open_input
+        if (avformat_open_input(&_format_ctx, source, nullptr, nullptr) < 0) {
+            throw Camera::InitializationError("avformat_open_input failed.");
+        }
+        // store the AVFormatContext with a deleter for automated clean-up
+        format_ctx = std::unique_ptr<AVFormatContext, void (*)(AVFormatContext *)>(_format_ctx, [](AVFormatContext * c){avformat_close_input(&c);});
     }
-    if (avformat_find_stream_info(format_ctx, nullptr) < 0) {
+    if (avformat_find_stream_info(format_ctx.get(), nullptr) < 0) {
         throw Camera::InitializationError("Failed to find stream info");
     }
     //std::cout << "Format: " << format_ctx->iformat->name << std::endl;
@@ -57,44 +51,36 @@ void Camera_ffmpeg::initialize() {
     if (nullptr == codec) {
         throw Camera::InitializationError("Codec not found.");
     }
-    codec_ctx = avcodec_alloc_context3(codec);
-    if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0) {
+    codec_ctx = std::unique_ptr<AVCodecContext, void (*)(AVCodecContext *)>(avcodec_alloc_context3(codec), [](AVCodecContext * codec_ctx){avcodec_free_context(&codec_ctx);});
+    if (avcodec_parameters_to_context(codec_ctx.get(), codecpar) < 0) {
         throw Camera::InitializationError("Failed to copy codec parameters.");
     }
-    if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
+    if (avcodec_open2(codec_ctx.get(), codec, nullptr) < 0) {
         throw Camera::InitializationError("Failed to open codec.");
     }
-    packet = av_packet_alloc();
-    frame = av_frame_alloc();
+    packet = std::unique_ptr<AVPacket, void (*)(AVPacket *)>(av_packet_alloc(), [](AVPacket * packet){av_packet_free(&packet);});
+    frame = std::unique_ptr<AVFrame, void (*)(AVFrame *)>(av_frame_alloc(), [](AVFrame * frame){av_frame_free(&frame);});
     //std::cerr << "Codec ready to process frames." << std::endl;
 }
 
-void Camera_ffmpeg::destroy() {
-    avformat_close_input(&format_ctx);
-    av_frame_free(&frame);
-    av_packet_free(&packet);
-    avcodec_free_context(&codec_ctx);
-    avformat_network_deinit();
-}
-
 Camera_ffmpeg::~Camera_ffmpeg() {
-    destroy();
+    avformat_network_deinit();
 }
 
 std::expected<RawImage, Camera::GrabError> Camera_ffmpeg::grab_frame()
 {
-    if (av_read_frame(format_ctx, packet) < 0) {
+    if (av_read_frame(format_ctx.get(), packet.get()) < 0) {
         return std::unexpected(GrabError("av_read_frame failed."));
     }
     // packet has been populated, remember to unref it no matter where we return
-    std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet_guard(packet, &av_packet_unref);
+    std::unique_ptr<AVPacket, decltype(&av_packet_unref)> packet_guard(packet.get(), &av_packet_unref);
     if (packet->stream_index != video_stream_index) {
         return std::unexpected(Camera::GrabError("Multi-stream input is not supported."));
     }
-    if (avcodec_send_packet(codec_ctx, packet) != 0) {
+    if (avcodec_send_packet(codec_ctx.get(), packet.get()) != 0) {
         return std::unexpected(Camera::GrabError("avcodec_send_packet failed."));
     }
-    if (avcodec_receive_frame(codec_ctx, frame) != 0) {
+    if (avcodec_receive_frame(codec_ctx.get(), frame.get()) != 0) {
         return std::unexpected(Camera::GrabError("avcodec_receive_frame failed."));
     }
     //std::cout << "Decoded one frame: width=" << frame->width << ", height=" << frame->height << std::endl;
