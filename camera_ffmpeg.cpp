@@ -9,6 +9,7 @@ extern "C"
     #include <libavformat/avformat.h>
     #include <libavcodec/avcodec.h>
     #include <libavutil/imgutils.h>
+    #include <libavutil/error.h>
 
     std::unique_ptr<Camera> init_camera()
     {
@@ -25,8 +26,11 @@ Camera_ffmpeg::Camera_ffmpeg() : Camera() {
     }
     {
         AVFormatContext *_format_ctx = nullptr; // will be allocated by avformat_open_input
-        if (avformat_open_input(&_format_ctx, source, nullptr, nullptr) < 0) {
-            throw Camera::InitializationError("avformat_open_input failed.");
+        int ret = avformat_open_input(&_format_ctx, source, nullptr, nullptr);
+        if (ret < 0) {
+            char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
+            av_strerror(ret, err_buf, sizeof(err_buf));
+            throw Camera::InitializationError(std::string("avformat_open_input failed: ") + err_buf);
         }
         // store the AVFormatContext with a deleter for automated clean-up
         format_ctx = std::unique_ptr<AVFormatContext, void (*)(AVFormatContext *)>(_format_ctx, [](AVFormatContext * c){avformat_close_input(&c);});
