@@ -87,7 +87,8 @@ std::expected<RawImage, Camera::GrabError> Camera_ffmpeg::grab_frame()
     if (frame->width != codecpar->width || frame->height != codecpar->height) {
         return std::unexpected(Camera::GrabError("Streams with variable frame dimensions are not supported."));
     }
-    if (AV_PIX_FMT_YUV420P != static_cast<AVPixelFormat>(frame->format)) {
+    const AVPixelFormat format = static_cast<AVPixelFormat>(frame->format);
+    if (AV_PIX_FMT_YUV420P != format && AV_PIX_FMT_YUVJ420P != format) {
         return std::unexpected(Camera::GrabError(std::string("Only yuv420p is supported, but frame was ") + av_get_pix_fmt_name(static_cast<AVPixelFormat>(frame->format))));
     }
     
