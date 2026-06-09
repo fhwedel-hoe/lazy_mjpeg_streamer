@@ -8,7 +8,7 @@ class Camera_pylon : public Camera {
     public:
         Camera_pylon();
         ~Camera_pylon();
-        virtual RawImage grab_frame();
+        virtual std::expected<RawImage, Camera::GrabError> grab_frame();
     private:
         // This smart pointer will receive the grab result data.
         Pylon::CGrabResultPtr ptrGrabResult;

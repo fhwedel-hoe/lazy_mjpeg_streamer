@@ -24,11 +24,9 @@ target_link_libraries(camera_${CAMERA} realsense)
 endif()
 
 if("${CAMERA}" STREQUAL "pylon")
-target_include_directories(camera_${CAMERA} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/pylon/include/)
-target_link_directories(camera_${CAMERA} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/pylon/lib/)
-target_link_libraries(camera_${CAMERA} pylonbase GenApi_gcc_v3_1_Basler_pylon GCBase_gcc_v3_1_Basler_pylon)
+find_package(pylon REQUIRED)
+target_link_libraries(camera_${CAMERA} pylon::pylon)
 endif()
-
 
 if("${CAMERA}" STREQUAL "ffmpeg")
     find_package(PkgConfig REQUIRED)

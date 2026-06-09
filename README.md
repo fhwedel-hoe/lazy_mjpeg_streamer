@@ -20,5 +20,5 @@ Available sources:
 * Cameras supported by the Intel [librealsense 1](https://github.com/IntelRealSense/librealsense/tree/v1.12.1).
   Tested with a R200 camera.
 
-* Cameras supported by the Basler [pylon 5 SDK](https://www.baslerweb.com/en/sales-support/downloads/software-downloads/).
+* Cameras supported by the Basler [pylon 8 SDK](https://www.baslerweb.com/en/downloads/).
   Tested with a Dart daA1600-60uc camera.

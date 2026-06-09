@@ -46,7 +46,7 @@ Camera_pylon::~Camera_pylon() {
     Pylon::PylonTerminate(); 
 }
 
-RawImage Camera_pylon::grab_frame() {
+std::expected<RawImage, Camera::GrabError> Camera_pylon::grab_frame() {
         if ( camera->IsGrabbing())
         {
             // Wait for an image and then retrieve it. A timeout of 1000 ms is used.
@@ -59,7 +59,7 @@ RawImage Camera_pylon::grab_frame() {
                 const uint8_t *pImageBuffer = (uint8_t *) ptrGrabResult->GetBuffer();
                 const size_t payloadSize = ptrGrabResult->GetPayloadSize();
                 const std::vector<unsigned char> vData(pImageBuffer,pImageBuffer+payloadSize);
-                return RawImage(vData, ptrGrabResult->GetWidth(), ptrGrabResult->GetHeight(), TJPF_RGB);
+                return RawImage(vData, ptrGrabResult->GetWidth(), ptrGrabResult->GetHeight(), TJCS_RGB, TJPF_RGB);
             }
             else
             {
