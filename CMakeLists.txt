@@ -12,8 +12,6 @@ set(CMAKE_CXX_STANDARD 23)
 add_library(camera_${CAMERA} STATIC camera_${CAMERA}.cpp)
 
 if("${CAMERA}" STREQUAL "ueye")
-target_include_directories(camera_${CAMERA} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/include/)
-target_link_directories(camera_${CAMERA} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/ueye/usr/lib/)
 target_link_libraries(camera_${CAMERA} ueye_api)
 endif()
 

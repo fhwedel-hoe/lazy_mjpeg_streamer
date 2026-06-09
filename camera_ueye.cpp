@@ -49,10 +49,10 @@ Camera_ueye::~Camera_ueye() {
     abortOnError(nRet, "exit camera failed with error code: ");
 }
 
-RawImage Camera_ueye::grab_frame() {
+std::expected<RawImage, Camera::GrabError> Camera_ueye::grab_frame() {
     /* capture a single frame */
     int nRet = is_FreezeVideo(hCam, IS_WAIT);
     unsigned char* pData = reinterpret_cast<unsigned char*>(pMemoryBuffer);
     /* wrap C array */
-    return RawImage(std::vector<unsigned char>(pData,pData+sData), rectAoi.s32Width, rectAoi.s32Height, TJPF_BGR);
+    return RawImage(std::vector<unsigned char>(pData,pData+sData), rectAoi.s32Width, rectAoi.s32Height, TJCS_RGB, TJPF_BGR);
 }

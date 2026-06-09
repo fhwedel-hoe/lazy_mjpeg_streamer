@@ -14,11 +14,11 @@ Tested on Ubuntu 24.04 amd64 Linux.
 
 Available sources:
 
-* Cameras supported by the [IDS Imaging SDK](https://de.ids-imaging.com/download-ueye-lin64.html).
-  Tested with a GigE uEye camera.
+* Cameras supported by the [IDS Software Suite 4.96.1](https://de.ids-imaging.com/download-details/AB02574.html?os=linux&version=&bus=64).
+  Tested with a GigE uEye UI-6230SE-C-HQ Rev.2 camera.
 
 * Cameras supported by the Intel [librealsense 1](https://github.com/IntelRealSense/librealsense/tree/v1.12.1).
   Tested with a R200 camera.
 
 * Cameras supported by the Basler [pylon 8 SDK](https://www.baslerweb.com/en/downloads/).
-  Tested with a Dart daA1600-60uc camera.
+  Tested with a USB3 Dart daA1600-60uc camera.

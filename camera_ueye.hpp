@@ -7,7 +7,7 @@ class Camera_ueye : public Camera {
     public:
         Camera_ueye();
         ~Camera_ueye();
-        virtual RawImage grab_frame();
+        virtual std::expected<RawImage, Camera::GrabError> grab_frame();
     private:
         char *pMemoryBuffer = 0;
         size_t sData = 0;
